@@ -10,7 +10,7 @@ ALWAYS RIGHT. AUTOMAGICALLY.
 
 The SPACE CLOCK sets itself using GPS signals to achieve microsecond accuracy of up to one millionth of a second. Not only is the SPACE CLOCK a physical clock, but it also acts as an __NTP__ server (network time server) allowing you to sync precise time across all of your network devices.
 
-![SPACE CLOCK photo](_artifacts/photos/space-clock_01.jpg)
+![SPACE CLOCK photo](_artifacts/photos/space-clock_00.jpg)
 
 ## Features
 
