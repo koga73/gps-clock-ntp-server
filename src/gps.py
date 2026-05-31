@@ -1,21 +1,21 @@
-import _thread
+import micropython
 import time
+import _thread
 from machine import Pin
+from array import array
 
 from lib.l76x import L76X
-
-# New ticks-per-second gets multiplied by this factor to smooth out into an averaged jitter 
-_JITTER_SMOOTHING_FACTOR = 0.1
 
 class GPS():
     # Constructor
     def __init__(self, pps_pin = 16):
         self._lock = _thread.allocate_lock()
 
+        self._pps = None
         self._pps_pin = pps_pin
 
-        self._pps_last_tick = 0
-        self._pps_ticks_per_second = 1000000
+        # Preallocate memory for hard irq
+        self._irq_pps = array("i", [0, 1000000]) # [pps_last_tick, pps_ticks_per_second]
 
     def init(self):
         gps = L76X()
@@ -37,22 +37,26 @@ class GPS():
 
         self.gps = gps
 
-        # Soft IRQ so we can use locks in the handler
+        # Allocate exception buffer for IRQ handler
+        micropython.alloc_emergency_exception_buf(128)
+
         pps = Pin(self._pps_pin, Pin.IN)
-        pps.irq(trigger = Pin.IRQ_RISING, handler = self._handle_pps, hard = False)
+        pps.irq(trigger = Pin.IRQ_RISING, handler = self._handle_pps, hard = True)
+        self._pps = pps
 
     # PPS signal IRQ handler, capture the tick and compute the ticks-per-second
     def _handle_pps(self, _pin):
         pps_tick = time.ticks_us()
 
-        with self._lock:
-            delta = time.ticks_diff(pps_tick, self._pps_last_tick)
-            self._pps_last_tick = pps_tick
-            
-            # Ignore if the delta is too far off
-            if (950000 < delta < 1050000):
-                self._pps_ticks_per_second = int(_JITTER_SMOOTHING_FACTOR * delta + (1 - _JITTER_SMOOTHING_FACTOR) * self._pps_ticks_per_second)
-    
+        irq_pps = self._irq_pps
+        
+        delta = time.ticks_diff(pps_tick, irq_pps[0])
+        irq_pps[0] = pps_tick
+        
+        # Ignore if the delta is too far off
+        if (950000 < delta < 1050000):
+            irq_pps[1] = delta
+
     # Call from main loop
     def loop(self):
         return self.gps.L76X_Receive()
@@ -60,7 +64,8 @@ class GPS():
     # Return tuple of (last_pps_tick, ticks_per_second)
     def get_pps(self):
         with self._lock:
-            return self._pps_last_tick, self._pps_ticks_per_second
+            irq_pps = self._irq_pps
+            return irq_pps[0], irq_pps[1]
 
     def get_satellites(self):
         with self._lock:

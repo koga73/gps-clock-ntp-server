@@ -8,6 +8,9 @@ _SINGLETON_ENFORCER = object()
 
 # Clock with microsecond precision, timezones and daylight saving time
 class Clock:
+    # New ticks-per-second gets multiplied by this factor to smooth out into an averaged jitter 
+    JITTER_SMOOTHING_FACTOR = 0.1
+
     ERROR_NOT_SET = "time not set"
 
     DEFAULT_FORMAT_24HR = False
@@ -167,16 +170,16 @@ class Clock:
         seconds = time.mktime((dt[0], dt[1], dt[2], dt[4], dt[5], dt[6], dt[3], 0))
 
         pps_last_tick, pps_ticks_per_second = pps
-        
-        # Assume the subseconds in tuple is in Microseconds
-        nema_us = (seconds * 1000000) + dt[7]
-        tick_gap = time.ticks_diff(time.ticks_us(), pps_last_tick)
-        gap_us = (tick_gap * 1000000) // pps_ticks_per_second
 
         with self._lock:
-            self._time_us = nema_us - gap_us
+            # Assume the subseconds in tuple is in Microseconds
+            self._time_us = seconds * 1000000 + dt[7]
             self._pps_last_tick = pps_last_tick
-            self._pps_ticks_per_second = pps_ticks_per_second
+            # Smooth out the PPS ticks-per-second to reduce jitter
+            self._pps_ticks_per_second = int(
+                Clock.JITTER_SMOOTHING_FACTOR * pps_ticks_per_second +
+                (1 - Clock.JITTER_SMOOTHING_FACTOR) * self._pps_ticks_per_second
+            )
 
     # GET datetime UTC tuple where subseconds = microseconds
     # dt = (year, month, day, weekday, hours, minutes, seconds, subseconds)
