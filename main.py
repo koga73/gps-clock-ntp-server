@@ -184,8 +184,6 @@ async def _loop_ap():
 
 # region GPS_NTP
 def _loop_gps():
-    gps.init()
-
     # Start the ntp server
     ntp = NtpServer(clock.get_seconds)
     ntp.start()
@@ -202,9 +200,9 @@ def _loop_gps():
         # If we have a new GPS timestamp, update the clock and display
         if (did_update):
             # Update Clock with GPS time on PPS signal
-            datetime = gps.get_datetime()
-            # Update our custom clock
-            clock.set_datetime(datetime, gps.get_pps())
+            clock.set_datetime(gps.get_datetime(), gps.get_pps())
+        
+        time.sleep_ms(1) # Give the thread a break
     
     print("gps and ntp stopped")
     ntp.stop()
@@ -220,6 +218,8 @@ async def main():
     asyncio.create_task(display.loop())
     display.show("----")
 
+    # Crucial to init GPS in the main thread for IRQ to work correctly!
+    gps.init()
     # Start GPS in a separate thread
     _thread.start_new_thread(_loop_gps, ())
 
