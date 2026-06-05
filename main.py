@@ -120,9 +120,9 @@ async def _loop_default():
 
             print("\ngps status")
             if (gps.has_fix()):
-                print(f"time = {gps.get_timestamp()}")
-                print(f"lat = {gps.get_lat()}, lon = {gps.get_lon()}")
                 print(f"satellites = {gps.get_satellites()}")
+                print(f"lat = {gps.get_lat()}, lon = {gps.get_lon()}")
+                print(f"clock = {clock.get_timestamp_local()}")
             else:
                 print("searching for satellites...")
             
@@ -184,48 +184,44 @@ async def _loop_ap():
 
 # region GPS_NTP
 def _loop_gps():
-    # Start the ntp server
+    # Create the ntp server
     ntp = NtpServer(clock.get_seconds)
-    ntp.start()
-    
+    ntp_ready = False
+
     while True:
         # Process NTP requests
-        break_flag = ntp.udp_loop()
-        if (break_flag):
-            break
+        if (ntp_ready):
+            break_flag = ntp.udp_loop()
+            if (break_flag):
+                break
 
         # Try to receive GPS data on PPS signal
-        did_update = gps.loop()
+        did_change_time = gps.loop()
         
         # If we have a new GPS timestamp, update the clock and display
-        if (did_update):
+        if (did_change_time):
             # Update Clock with GPS time on PPS signal
             clock.set_datetime(gps.get_datetime(), gps.get_pps())
+            
+            # First fix, start the NTP server
+            if (not ntp_ready):
+                ntp_ready = True
+                ntp.start()
         
         time.sleep_ms(1) # Give the thread a break
     
-    print("gps and ntp stopped")
     ntp.stop()
 # endregion
 
 # region MAIN
 async def main():
-    print("starting...")
-    # Add delay to allow for stopping the program if needed
-    await asyncio.sleep_ms(2000)
-
-    # Start display loop
-    asyncio.create_task(display.loop())
-    display.show("----")
-
-    # Crucial to init GPS in the main thread for IRQ to work correctly!
-    gps.init()
-    # Start GPS in a separate thread
-    _thread.start_new_thread(_loop_gps, ())
 
     # Reset wlan interfaces
     await wlan_reset()
     network.hostname(WIFI_HOSTNAME)
+
+    # Start display loop
+    asyncio.create_task(display.loop())
 
     try:
         mode = boot_read()
@@ -246,6 +242,17 @@ async def _reboot():
 # endregion
 
 try:
+    print("starting...")
+    # Add delay to allow for stopping the program if needed
+    time.sleep_ms(2000)
+
+    display.show("----")
+
+    # Crucial to init GPS in the main thread for IRQ to work correctly!
+    gps.init()
+    # Start GPS in a separate thread
+    _thread.start_new_thread(_loop_gps, ())
+
     asyncio.run(main())
 except KeyboardInterrupt:
     print("\nstopped by user")

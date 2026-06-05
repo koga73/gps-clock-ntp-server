@@ -9,78 +9,64 @@ import micropyGPS as Parser
 Temp = '0123456789ABCDEF*'
 
 class L76X(object):
-    Time_Year = 0
-    Time_Month = 0
-    Time_Day = 0
-    Time_Hours = 0
-    Time_Minutes = 0
-    Time_Seconds = 0
-    Time_Microseconds = 0
-    Timestamp = "" # "0000-00-00 00:00:00.0" # Unix format
+    # Baud rate
+    SET_BAUDRATE          = '$PCAS01'
+    SET_BAUDRATE_115200   = '$PCAS01,5'
+    SET_BAUDRATE_57600    = '$PCAS01,4'
+    SET_BAUDRATE_38400    = '$PCAS01,3'
+    SET_BAUDRATE_19200    = '$PCAS01,2'
+    SET_BAUDRATE_9600     = '$PCAS01,1'
+    SET_BAUDRATE_4800     = '$PCAS01,0'
 
-    Lon = 0.0
-    Lat = 0.0
-    Altitude = 0.0
-    Height = 0.0
-    
-    Satellites = 0
+    # Set the message frequency
+    SET_FREQUENCY         = '$PCAS02'
+    SET_FREQUENCY_200MS   = '$PCAS02,200'
+    SET_FREQUENCY_500MS   = '$PCAS02,500'
+    SET_FREQUENCY_1S      = '$PCAS02,1000'
 
-    # $PMTK Commands are for MediaTek, but the L76X uses $PCAS commands
-    # https://raw.githubusercontent.com/Seeed-Projects/Seeed_L76K-GNSS_for_XIAO/fb74b715224e0ac153c3884e578ee8e024ed8946/docs/Quectel_L76K_GNSS_Protocol_Specification_V1.1.pdf
-
-    #Startup mode
-    # SET_HOT_START       = '$PMTK101'
-    # SET_WARM_START      = '$PMTK102'
-    # SET_COLD_START      = '$PMTK103'
-    # SET_FULL_COLD_START = '$PMTK104'
-
-    #Standby mode -- Exit requires high level trigger
-    # SET_PERPETUAL_STANDBY_MODE      = '$PMTK161'
-
-    # SET_PERIODIC_MODE               = '$PMTK225'
-    # SET_NORMAL_MODE                 = '$PMTK225,0'
-    # SET_PERIODIC_BACKUP_MODE        = '$PMTK225,1,1000,2000'
-    # SET_PERIODIC_STANDBY_MODE       = '$PMTK225,2,1000,2000'
-    # SET_PERPETUAL_BACKUP_MODE       = '$PMTK225,4'
-    # SET_ALWAYSLOCATE_STANDBY_MODE   = '$PMTK225,8'
-    # SET_ALWAYSLOCATE_BACKUP_MODE    = '$PMTK225,9'
-
-    #Set the message interval,100ms~10000ms
-    SET_POS_FIX         = '$PCAS02'
-    SET_POS_FIX_200MS   = '$PCAS02,200'
-    SET_POS_FIX_500MS   = '$PCAS02,500'
-    SET_POS_FIX_1S      = '$PCAS02,1000'
-
-    #Switching time output
-    # SET_SYNC_PPS_NMEA_OFF   = '$PMTK255,0'
-    # SET_SYNC_PPS_NMEA_ON    = '$PMTK255,1'
-    SET_PPS_OFF = '$PCAS07,0'
-    SET_PPS_ON  = '$PCAS07,1'
-
-    #To restore the system default setting
-    # SET_REDUCTION               = '$PMTK314,-1'
-
-    #Set NMEA sentence output frequencies 
+    # Set NMEA sentence output 
     # GGA, GLL, GSA, GSV, RMC, VTG, ZDA, ANT
     SET_NMEA_OUTPUT = '$PCAS03,1,1,1,1,1,1,1,1,0,0,,,0,0'
-    
-    #Baud rate
-    SET_NMEA_BAUDRATE          = '$PCAS01'
-    SET_NMEA_BAUDRATE_115200   = '$PCAS01,5'
-    SET_NMEA_BAUDRATE_57600    = '$PCAS01,4'
-    SET_NMEA_BAUDRATE_38400    = '$PCAS01,3'
-    SET_NMEA_BAUDRATE_19200    = '$PCAS01,2'
-    SET_NMEA_BAUDRATE_9600     = '$PCAS01,1'
-    SET_NMEA_BAUDRATE_4800     = '$PCAS01,0'
 
-    # Navigation Mode
-    # 1 = Portable/Pedestrian; 2 = Stationary; 3 = Vehicle/Automotive.
-    SET_NAV_MODE_PORTABLE = '$PCAS11,1'
-    SET_NAV_MODE_STATIONARY = '$PCAS11,2'
-    SET_NAV_MODE_VEHICLE = '$PCAS11,3'
+    # Set satellite system
+    SET_SATELLITES = "$PCAS04"
+    SET_SATELLITES_GPS = "$PCAS04,1"
+    SET_SATELLITES_BEIDOU = "$PCAS04,2"
+    SET_SATELLITES_GPS_BEIDOU = "$PCAS04,3" # Default
+    SET_SATELLITES_GLONASS = "$PCAS04,4"
+    SET_SATELLITES_GPS_GLONASS = "$PCAS04,5"
+    SET_SATELLITES_BEIDOU_GLONASS = "$PCAS04,6"
+    SET_SATELLITES_GPS_BEIDOU_GLONASS = "$PCAS04,7"
+
+    # Set restart mode
+    SET_RESTART = "$PCAS10"
+    SET_RESTART_HOT = "$PCAS10,0"
+    SET_RESTART_WARM = "$PCAS10,1"
+    SET_RESTART_COLD = "$PCAS10,2"
+    SET_RESTART_RESET = "$PCAS10,3" # Factory reset
+
+    satellites = 0
+    lon = 0.0
+    lat = 0.0
+    altitude = 0.0
+    height = 0.0
+
+    time_year = 0
+    time_month = 0
+    time_day = 0
+    time_hours = 0
+    time_minutes = 0
+    time_seconds = 0
+    time_microseconds = 0
+    timestamp = "" # "0000-00-00 00:00:00.0" # Unix format
 
     def __init__(self):
         self.config = L76_Config(9600)
+
+        # location_formatting (str): Style For Presenting Longitude/Latitude:
+        # Decimal Degree Minute (ddm) - 40° 26.767′ N
+        # Degrees Minutes Seconds (dms) - 40° 26′ 46″ N
+        # Decimal Degrees (dd) - 40.446° N
         self.parser = Parser.MicropyGPS()
     
     def L76X_Send_Command(self, data):
@@ -99,8 +85,10 @@ class L76X(object):
     # Clear the GPS UART buffer
     def L76X_Flush(self):
         raw_data = self.config.Uart_ReceiveAll()
-        if raw_data is None:
+
+        if (len(raw_data) == 0):
             return False
+        
         for b in raw_data:
             try: self.parser.update(chr(b))
             except: continue
@@ -109,9 +97,18 @@ class L76X(object):
     def L76X_Receive(self):
         self.L76X_Flush()
 
+        # Update satellites
+        self.satellites = self.parser.satellites_in_use
+
         # Ensure we have a satellite fix
-        if (self.parser.satellites_in_use == 0):
+        if (self.satellites == 0):
             return False
+        
+        # Update coordinates
+        self.lat = self.parser.latitude
+        self.lon = self.parser.longitude
+        self.altitude = self.parser.altitude
+        self.height = self.parser.geoid_height
         
         # Update time
         day, month, year = self.parser.date
@@ -120,8 +117,6 @@ class L76X(object):
         # Ensure we have date
         if (year == 0 or month == 0 or day == 0):
             return False
-        
-        # print(seconds_raw)
 
         seconds = int(seconds_raw)
         microseconds = int(round((seconds_raw - seconds) * 1000000))
@@ -135,32 +130,23 @@ class L76X(object):
             hours, minutes, seconds,
             microseconds
         ) == (
-            self.Time_Year, self.Time_Month, self.Time_Day,
-            self.Time_Hours, self.Time_Minutes, self.Time_Seconds,
-            self.Time_Microseconds
+            self.time_year, self.time_month, self.time_day,
+            self.time_hours, self.time_minutes, self.time_seconds,
+            self.time_microseconds
         ): return False
         
-        self.Time_Year = year + 2000 # GPS returns year as 2 digit format
-        self.Time_Month = month
-        self.Time_Day = day
-        self.Time_Hours = hours
-        self.Time_Minutes = minutes
-        self.Time_Seconds = seconds
-        self.Time_Microseconds = microseconds
-        self.Timestamp = self._timestamp(year, month, day, hours, minutes, seconds, microseconds)
-
-        # Update coordinates
-        self.Lat = self.parser.latitude
-        self.Lon = self.parser.longitude
-        self.Altitude = self.parser.altitude
-        self.Height = self.parser.geoid_height
-
-        # Update satellites
-        self.Satellites = self.parser.satellites_in_use
+        self.time_year = year + 2000 # GPS returns year as 2 digit format
+        self.time_month = month
+        self.time_day = day
+        self.time_hours = hours
+        self.time_minutes = minutes
+        self.time_seconds = seconds
+        self.time_microseconds = microseconds
+        self.timestamp = self._create_timestamp_str(year, month, day, hours, minutes, seconds, microseconds)
 
         return True
     
-    def _timestamp(self, year, month, day, hours, minutes, seconds, microseconds = 0):
+    def _create_timestamp_str(self, year, month, day, hours, minutes, seconds, microseconds = 0):
         # Pad with leading zero if needed
         year = "20{:02d}".format(year)
         month = "{:02d}".format(month)

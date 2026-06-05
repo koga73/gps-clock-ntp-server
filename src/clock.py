@@ -46,89 +46,86 @@ class Clock:
     
     # region LOCALE
     def set_locale(self, format_24hr = None, tz = None, dst = None):
+        format_24hr = format_24hr == True
+        
+        tz = tz if tz != None else Clock.DEFAULT_TZ
+        tz_minutes = tz * 60
+
+        dst = dst if dst != None else Clock.DEFAULT_DST
+        ds = None
+
+        # US
+        if (dst == "us"):
+            # Daylight Saving starts on second Sunday of March at 2am
+            # 0 = Northern hemisphere
+            # 2 = Second week of the month
+            # 3 = March
+            # 6 = Sunday
+            # 2 = 2AM
+            # Time offset = 60 mins (GMT+1)
+            dst_policy = DaylightSavingPolicy(0, 2, 3, 6, 2, tz_minutes + 60)
+
+            # Daylight Saving ends on first Sunday of November at 2AM
+            # 0 = Northern hemisphere
+            # 1 = First week of the month
+            # 11 = November
+            # 6 = Sunday
+            # 2 = 2AM
+            # Time offset = 0 mins (GMT/UTC)
+            std_policy = StandardTimePolicy(0, 1, 11, 6, 2, tz_minutes)
+
+            ds = DaylightSaving(dst_policy, std_policy)
+
+        # UK / EU   
+        elif (dst == "uk"):
+            # Daylight Saving starts on last Sunday of March at 1AM
+            # 0 = Northern hemisphere
+            # 0 = Last week of the month
+            # 3 = March
+            # 6 = Sunday
+            # 1 = 1AM
+            # Time offset = 60 mins (GMT+1)
+            dst_policy = DaylightSavingPolicy(0, 0, 3, 6, 1, tz_minutes + 60)
+
+            # Daylight Saving ends on last Sunday of October at 2AM
+            # 0 = Northern hemisphere
+            # 0 = Last week of the month
+            # 10 = October
+            # 6 = Sunday
+            # 2 = 2AM
+            # Time offset = 0 mins (GMT/UTC)
+            std_policy = StandardTimePolicy(0, 0, 10, 6, 2, tz_minutes)
+
+            ds = DaylightSaving(dst_policy, std_policy)
+        
+        # Australia
+        elif (dst == "au"):
+            # Daylight Saving starts on first Sunday of October at 2am
+            # 1 = Southern hemisphere
+            # 1 = First week of the month
+            # 10 = October
+            # 6 = Sunday
+            # 2 = 2AM
+            # Time offset = 60 mins (GMT+1)
+            dst_policy = DaylightSavingPolicy(1, 1, 10, 6, 2, tz_minutes + 60)
+
+            # Daylight Saving ends on first Sunday of April at 3AM
+            # 1 = Southern hemisphere
+            # 1 = First week of the month
+            # 4 = April
+            # 6 = Sunday
+            # 3 = 3AM
+            # Time offset = 0 mins (GMT/UTC)
+            std_policy = StandardTimePolicy(1, 1, 4, 6, 3, tz_minutes)
+
+            ds = DaylightSaving(dst_policy, std_policy)
+        
         with self._lock:
-            if (format_24hr != None):
-                self.format_24hr = format_24hr
-            if (tz != None):
-                self.tz = tz
-            if (dst != None):
-                self.dst = dst
+            self.format_24hr = format_24hr
+            self.tz = tz
+            self.dst = dst
+            self._ds = ds
             
-            print("set_locale", json.dumps({
-                "format_24hr": format_24hr,
-                "tz": tz,
-                "dst": dst
-            }))
-            tz_minutes = self.tz * 60
-
-            # US
-            if (self.dst == "us"):
-                # Daylight Saving starts on second Sunday of March at 2am
-                # 0 = Northern hemisphere
-                # 2 = Second week of the month
-                # 3 = March
-                # 6 = Sunday
-                # 2 = 2AM
-                # Time offset = 60 mins (GMT+1)
-                dst_policy = DaylightSavingPolicy(0, 2, 3, 6, 2, tz_minutes + 60)
-
-                # Daylight Saving ends on first Sunday of November at 2AM
-                # 0 = Northern hemisphere
-                # 1 = First week of the month
-                # 11 = November
-                # 6 = Sunday
-                # 2 = 2AM
-                # Time offset = 0 mins (GMT/UTC)
-                std_policy = StandardTimePolicy(0, 1, 11, 6, 2, tz_minutes)
-
-                self._ds = DaylightSaving(dst_policy, std_policy)
-
-            # UK / EU   
-            elif (self.dst == "uk"):
-                # Daylight Saving starts on last Sunday of March at 1AM
-                # 0 = Northern hemisphere
-                # 0 = Last week of the month
-                # 3 = March
-                # 6 = Sunday
-                # 1 = 1AM
-                # Time offset = 60 mins (GMT+1)
-                dst_policy = DaylightSavingPolicy(0, 0, 3, 6, 1, tz_minutes + 60)
-
-                # Daylight Saving ends on last Sunday of October at 2AM
-                # 0 = Northern hemisphere
-                # 0 = Last week of the month
-                # 10 = October
-                # 6 = Sunday
-                # 2 = 2AM
-                # Time offset = 0 mins (GMT/UTC)
-                std_policy = StandardTimePolicy(0, 0, 10, 6, 2, tz_minutes)
-
-                self._ds = DaylightSaving(dst_policy, std_policy)
-            
-            # Australia
-            elif (self.dst == "au"):
-                # Daylight Saving starts on first Sunday of October at 2am
-                # 1 = Southern hemisphere
-                # 1 = First week of the month
-                # 10 = October
-                # 6 = Sunday
-                # 2 = 2AM
-                # Time offset = 60 mins (GMT+1)
-                dst_policy = DaylightSavingPolicy(1, 1, 10, 6, 2, tz_minutes + 60)
-
-                # Daylight Saving ends on first Sunday of April at 3AM
-                # 1 = Southern hemisphere
-                # 1 = First week of the month
-                # 4 = April
-                # 6 = Sunday
-                # 3 = 3AM
-                # Time offset = 0 mins (GMT/UTC)
-                std_policy = StandardTimePolicy(1, 1, 4, 6, 3, tz_minutes)
-
-                self._ds = DaylightSaving(dst_policy, std_policy)
-            
-            else:
-                self._ds = None
     
     def get_locale(self):
         with self._lock:
