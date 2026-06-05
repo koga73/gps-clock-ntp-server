@@ -35,24 +35,35 @@ async def web_server(request_handler, reboot_handler = None):
     return server
 
 async def handle_client(reader, writer, request_handler, reboot_handler = None):
-    request = await _read_http_request(reader)
-    print("\nhttp request:\n" + str(request))
+    reboot = False
 
-    response, reboot = await request_handler(request)
-    
-    if isinstance(response, bytes):
-        writer.write(response)
-    else:
-        writer.write(response.encode())
-    
-    await writer.drain()
-    writer.close()
-    await writer.wait_closed()
+    try:
+        # Timeout prevents stalled/slow clients from hanging the handler
+        request = await asyncio.wait_for(_read_http_request(reader), timeout=5)
+        print("\nhttp request:\n" + str(request))
 
-    # Reboot
-    if (reboot == True):
-        if (reboot_handler != None):
-            await reboot_handler()
+        response, reboot = await request_handler(request)
+        
+        if isinstance(response, bytes):
+            writer.write(response)
+        else:
+            writer.write(response.encode())
+        
+        await writer.drain()
+
+    except Exception as e:
+        print("\nhandle_client error:", e)
+    
+    finally:
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+    # Reboot if needed
+    if (reboot == True and reboot_handler != None):
+        await reboot_handler()
 #endregion
 
 # region GATEWAY_ROUTES

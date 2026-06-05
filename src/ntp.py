@@ -1,3 +1,4 @@
+import _thread
 import socket
 import ustruct
 import errno
@@ -16,6 +17,8 @@ PRECISION = _PRECISION_MICROSECOND
 
 class NtpServer():
     def __init__(self, time_func):
+        self._lock = _thread.allocate_lock()
+
         self.time_func = time_func
         
         self._server = None
@@ -59,7 +62,8 @@ class NtpServer():
             self._protocol.datagram_received(data, addr, recv_time, self.time_func)
         
         except ValueError as e:
-            print("ntp error: " + str(e))
+            with self._lock:
+                print("ntp error: " + str(e))
         
         except OSError as e:
             # If transport is closed, break the loop
@@ -70,6 +74,8 @@ class NtpServer():
 
 class NtpProtocol():
     def __init__(self, transport):
+        self._lock = _thread.allocate_lock()
+
         self.transport = transport
 
     def datagram_received(self, data, addr, recv_time, time_func):
@@ -80,7 +86,8 @@ class NtpProtocol():
         self.process_packet(data, addr, recv_time, time_func)
     
     def process_packet(self, data, addr, recv_time, time_func):
-        print(f"\nntp request from {addr[0]}")
+        with self._lock:
+            print(f"\nntp request from {addr[0]}")
 
         # Extract Client Transmit Timestamp (bytes 40-47 in request)
         client_transmit_timestamp = data[40:48]
